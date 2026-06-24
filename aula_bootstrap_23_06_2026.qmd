@@ -1,0 +1,442 @@
+---
+title: "Aula do dia 23 de junho de 2026"
+lang: pt-BR
+author: "Angelo dos Santos"
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    code-summary: "Mostrar o código"
+---
+
+# Métodos Bootstrap
+
+Notas de aula baseadas nos slides de **Lupércio França Bessegato** — Dep. de Estatística/UFJF — Estatística Computacional II (2020).
+
+---
+
+## 1. Introdução ao Bootstrap
+
+### 1.1 Métodos de Reamostragem
+
+Os métodos de reamostragem têm como objetivo a **estimação de parâmetros populacionais baseando-se apenas nos dados**, sem impor suposições sobre a forma da distribuição populacional ou a origem dos dados. Os principais métodos são:
+
+| Método | Referências |
+|---|---|
+| **Testes de Permutação** | Fisher (1935); Pitman (1937, 1938) |
+| **Jackknife** | Quenouile (1949); Tukey (1958) |
+| **Bootstrap** | Efron (1979) |
+
+### 1.2 Testes de Permutação
+
+- Conhecidos desde os anos 1930s.
+- O número de permutações possíveis de uma amostra de tamanho $n$ é $n!$.
+- O grande impedimento ao seu uso é justamente a explosão combinatória: à medida que o tamanho amostral cresce, a quantidade de permutações possíveis torna-se inviável computacionalmente.
+
+### 1.3 Bootstrap e Jackknife
+
+**Jackknife:**
+
+- Em princípio útil para amostras pequenas.
+- Pode tornar-se computacionalmente ineficiente para amostras maiores, embora isso tenha melhorado com o aumento da velocidade de processamento.
+
+**Relação histórica:**
+
+- **Efron (1979):** conectou o bootstrapping com o jackknife, o método delta, a validação cruzada e os testes de permutação. O bootstrap foi inicialmente construído como uma aproximação ao jackknife.
+- **Efron (1983):** demonstrou que o uso de correção de viés bootstrap apresenta desempenho melhor que a validação cruzada na estimação de taxas de erros de classificação; introduziu variantes do bootstrap com validação cruzada e métodos de ressubstituição.
+- **Gong (1986):** aplicou o bootstrap na construção de modelos de regressão logística.
+
+---
+
+## 2. Fundamentos de Reamostragem
+
+### 2.1 Caso Simples
+
+Considere observações **independentes e identicamente distribuídas (i.i.d.)** com função de distribuição acumulada $F$ desconhecida.
+
+**Função de distribuição empírica ($F_n$):**
+
+- Atribui peso igual de $1/n$ a cada observação.
+- É o elemento básico para o bootstrapping.
+
+**Interesse central:** estimar **funcionais** da distribuição populacional desconhecida $F$. A maioria dos parâmetros de interesse estatístico pode ser expressa como um funcional de $F$.
+
+### 2.2 Exemplo: $\mu$ e $\sigma^2$ como Funcionais
+
+$$
+\mu = \int_{R_X} x \, \mathrm{d}F(x) \qquad \sigma^2 = \int_{R_X} (x - \mu)^2 \, \mathrm{d}F(x)
+$$
+
+onde $R_X$ é o conjunto de valores possíveis do domínio de $F$.
+
+**Ideia central do bootstrap:**
+
+- Usar apenas o que é conhecido a partir dos dados (a amostra).
+- Não introduzir suposições sobre a distribuição da população.
+
+### 2.3 Estrutura Formal
+
+**Amostra original:**
+
+- $F$ é a distribuição populacional e $T(F)$ é o funcional que define o parâmetro de interesse.
+- A estimação é baseada em uma amostra i.i.d. de $F$ de tamanho $n$.
+- $F_n$: função de distribuição empírica.
+- $T(F_n)$: estimativa amostral do parâmetro.
+
+**Amostra bootstrap:**
+
+- É uma amostra **com reposição** da amostra original.
+- $F_n$ desempenha o papel de $F$.
+- $F_n^*$: função de distribuição bootstrap (desempenha o papel de $F_n$).
+
+### 2.4 O que é uma Amostra Bootstrap?
+
+Uma **amostra bootstrap** é composta por elementos escolhidos **aleatoriamente com reposição** a partir da amostra original, com as seguintes características:
+
+- Tem o mesmo tamanho $n$ da amostra original.
+- A quantidade de reamostras possíveis é $n^n$ (muito maior que $n!$ dos testes de permutação).
+- Na prática, utiliza-se uma **amostra aleatória** do conjunto das amostras bootstrap possíveis — uma maneira viável de aproximar a distribuição das amostras bootstrap.
+
+---
+
+## 3. Exemplo Prático
+
+### 3.1 Configuração
+
+- **Parâmetro populacional:** $T(F) = \mu$
+- **Amostra original:** $x_1 = 7;\; x_2 = 5;\; x_3 = 3;\; x_4 = 9;\; x_5 = 6$
+- **Estimativa amostral:** $T(F_n) = \bar{x} = 6{,}0$
+
+```{r}
+#| label: funcao-distribuicao-empirica
+
+# Função distribuição empírica de amostra original
+original <- c(7, 5, 3, 9, 6)
+Fn <- ecdf(original)
+summary(Fn)
+knots(Fn)
+
+# Visualização
+plot(Fn, ylim = c(0, 1.1), main = "FDA Empírica")
+text(knots(Fn), 1:5/5, knots(Fn), cex = 0.8, pos = 3)
+```
+
+### 3.2 Geração de Amostras Bootstrap
+
+**Primeira amostra bootstrap:**
+
+```{r}
+#| label: amostra-bootstrap-1
+
+# Geração de amostra bootstrap
+set.seed(666)
+amostra.boot <- sample(original, 5, replace = TRUE)
+amostra.boot
+mean(amostra.boot)
+```
+
+Resultado: $x_1^* = 9;\; x_2^* = 7;\; x_3^* = 6;\; x_4^* = 5;\; x_5^* = 5$
+
+Estimativa bootstrap: $T(F_n^*) = \bar{x}^* = 6{,}4$
+
+**Segunda amostra bootstrap:**
+
+```{r}
+#| label: amostra-bootstrap-2
+
+# Geração de outra amostra bootstrap
+amostra.boot <- sample(original, 5, replace = TRUE)
+amostra.boot
+mean(amostra.boot)
+```
+
+Resultado: $x_1^* = 9;\; x_2^* = 6;\; x_3^* = 3;\; x_4^* = 7;\; x_5^* = 5$
+
+Estimativa bootstrap: $T(F_n^*) = \bar{x}^* = 6{,}0$
+
+---
+
+## 4. Distribuição Bootstrap
+
+### 4.1 Definição
+
+A **distribuição bootstrap** é a distribuição da estimativa do parâmetro calculada sobre **todas** as amostras possíveis com reposição.
+
+- Quantidade de amostras possíveis: $n^n$
+- No exemplo: $5^5 = 3.125$ amostras
+
+### 4.2 Gerando Todas as Amostras Possíveis
+
+```{r}
+#| label: todas-amostras-bootstrap
+
+library(gtools)
+
+# Geração de todas as amostras com reposição da original
+amostras.boot <- permutations(n = 5, r = 5, v = original, repeats.allowed = TRUE)
+dim(amostras.boot)
+
+medias.boot <- apply(amostras.boot, 1, mean)
+mean(medias.boot)
+
+# Histograma de todas as possíveis
+hist(medias.boot, freq = FALSE, ylab = "Densidade", main = "Todas possíveis")
+lines(density(medias.boot), col = "blue")
+```
+
+> **Resultado importante:** A média teórica da distribuição bootstrap é igual à **média da amostra original** ($\bar{x} = 6$).
+
+### 4.3 Aproximação Monte Carlo da Distribuição Bootstrap
+
+Na prática, é **inviável** gerar todas as amostras com reposição possíveis. Por exemplo, para $n = 10$: $10^{10} = 10$ bilhões de amostras.
+
+**Solução — Aproximação Monte Carlo:**
+
+1. Repetir muitas vezes o procedimento de sorteio aleatório com reposição.
+2. Construir o histograma das estimativas bootstrap.
+3. Usar esse histograma como a **aproximação Monte Carlo** da distribuição bootstrap.
+
+Na prática, gera-se $B = 10.000$ ou $B = 100.000$ reamostras. À medida que $B$ cresce, a distribuição empírica se aproxima da distribuição bootstrap teórica.
+
+```{r}
+#| label: aproximacao-monte-carlo
+
+# Aproximação Monte Carlo da distribuição bootstrap
+medias.boot2 <- replicate(1000, mean(sample(original, 5, replace = TRUE)))
+mean(medias.boot2)
+
+hist(medias.boot2, freq = FALSE, ylab = "Densidade", main = "Aproximação Monte Carlo")
+lines(density(medias.boot2), col = "blue")
+```
+
+> **Observação:** A média das amostras bootstrap está bem próxima de 6,0, confirmando a convergência da aproximação Monte Carlo.
+
+---
+
+## 5. Procedimento Geral do Bootstrap
+
+O procedimento bootstrap pode ser resumido nos seguintes passos:
+
+1. **Geração de amostras bootstrap** (com reposição) a partir da distribuição empírica dos dados originais.
+2. **Cálculo de $T(F_n^*)$** — estimativa bootstrap de $T(F)$.
+3. **Repetição** dos passos anteriores $B$ vezes, com $B$ grande.
+
+A distribuição empírica das $B$ estimativas $T(F_n^*)$ constitui a **aproximação Monte Carlo da distribuição bootstrap**.
+
+---
+
+## 6. Fontes de Erro
+
+Existem duas fontes de erro no bootstrap:
+
+| Fonte de erro | Descrição |
+|---|---|
+| **Erro Monte Carlo** | Decorre do uso de $B$ reamostras em vez de todas as possíveis. Diminui à medida que $B$ cresce. |
+| **Erro de aproximação bootstrap** | Decorre da substituição de $F$ por $F_n^*$. O bootstrap funciona bem se $T(F_n^*) \to T(F)$ quando $n \to \infty$. |
+
+O segundo tipo de erro ocorre com frequência, mas **não é garantido** em todos os casos.
+
+### 6.1 Consistência do Bootstrap
+
+Um **estimador consistente** é aquele que se aproxima do verdadeiro valor do parâmetro à medida que o tamanho amostral cresce.
+
+**Atenção:** A estimativa bootstrap **não é consistente** no sentido probabilístico clássico em todos os casos. Exemplos de inconsistência:
+
+- Estimação da média quando a distribuição não tem variância finita.
+- Estimação do máximo e do mínimo.
+
+Em geral, o bootstrap é consistente quando o **Teorema Central do Limite (TCL) é aplicável**.
+
+**Bootstrap $m$-out-of-$n$ (Bickel e Ren, 1996):**
+
+- Seleciona-se $m$ elementos aleatoriamente com reposição de uma amostra de tamanho $n$, com $m < n$.
+- É uma extensão que **supera** os problemas de consistência do bootstrap padrão.
+
+---
+
+## 7. Aplicações do Bootstrap
+
+### 7.1 Quando usar?
+
+- É tentador usar o bootstrap em uma grande variedade de situações, mas **nem sempre ele funciona bem**.
+- Solução recomendada:
+  - Provar a consistência de acordo com um conjunto de suposições.
+  - Verificar o comportamento por meio de **simulações**.
+
+Em muitos casos, a consistência do bootstrap já está demonstrada na literatura. No entanto:
+
+- Há exemplos em que o bootstrap **não é consistente**.
+- Há casos em que nem a consistência nem a inconsistência estão provadas.
+- Nesses casos, **simulações** são usadas para confirmar ou negar a utilidade do bootstrap.
+
+### 7.2 Aplicações Mais Usuais
+
+- Construção de **intervalos de confiança**.
+- Estimação de **parâmetros**.
+- Estimação em **modelos de regressão**:
+  - Bootstrap dos resíduos.
+  - Bootstrap dos vetores (pares).
+  - Seleção de variáveis.
+- Estimação de **taxas de erros com ajuste de viés** em problemas de classificação.
+
+### 7.3 Simplicidade e Cuidados
+
+**Ponto positivo:** Para quase todo problema, há uma maneira de gerar amostras bootstrap.
+
+**Cuidados necessários:**
+
+- Nem sempre se percebe quando o bootstrap irá falhar.
+- Existem **extensões do bootstrap** com modificações para contornar problemas conhecidos na estimação.
+
+---
+
+## 8. Bootstrap na Linguagem R
+
+O R possui suporte nativo e pacotes dedicados ao bootstrap. Para explorar as funções disponíveis:
+
+```{r}
+#| label: bootstrap-r
+#| eval: false
+
+# Bootstrap no R
+??bootstrap
+help.search("bootstrap")
+```
+
+Os principais pacotes e funções para bootstrap no R incluem o pacote `boot`, que implementa o método de forma geral e flexível, permitindo calcular estatísticas bootstrap para praticamente qualquer estimador.
+
+---
+
+## 9. Dúvidas da Aula — FAQ
+
+::: {.callout-note collapse="true"}
+### Existe alguma noção intuitiva por trás da ideia de reamostragem?
+
+Sim, e ela é bastante elegante. A ideia central é um **princípio de analogia**: assim como a população está para a amostra original, a amostra original está para as reamostras bootstrap.
+
+Não conhecemos a distribuição populacional $F$, mas temos a amostra como nossa melhor informação sobre ela. Então, em vez de fazer suposições sobre $F$ (como assumir normalidade), usamos a própria amostra como um substituto da população e **reamostrar dela** imita o processo de coletar novas amostras da população real.
+
+Uma metáfora clássica: imagine que você tem apenas uma sacola de bolinhas coloridas e quer saber como seria a variabilidade se você pudesse comprar várias sacolas iguais da fábrica. Como não pode fazer isso, você retira bolinhas da sua sacola, anota a cor, **devolve**, e repete o processo muitas vezes. Cada sequência de retiradas é uma "nova sacola simulada". O bootstrap faz exatamente isso com dados numéricos — a reposição é crucial para preservar o tamanho e a estrutura da amostra original.
+:::
+
+::: {.callout-note collapse="true"}
+### É matematicamente demonstrado que a reamostragem, feita com todas as combinações possíveis, chega no resultado esperado?
+
+Sim. Quando se considera **todas** as $n^n$ amostras bootstrap possíveis (e não apenas uma aproximação Monte Carlo), pode-se demonstrar que a média da distribuição bootstrap é exatamente igual à média da amostra original. Isso é uma consequência direta da linearidade da esperança.
+
+Formalmente, se $\bar{x}$ é a média da amostra original, então:
+$$
+E^*[\bar{x}^*] = \bar{x}
+$$
+
+onde $E^*[\cdot]$ denota a esperança tomada sobre todas as reamostras bootstrap possíveis. No exemplo dos slides, isso foi verificado numericamente: a média de todas as 3.125 médias bootstrap foi exatamente 6,0 — igual à média da amostra original.
+
+O resultado mais geral e profundo é o **Teorema de Consistência do Bootstrap**: sob certas condições de regularidade (notavelmente, quando o TCL se aplica), a distribuição bootstrap de $T(F_n^*)$ converge para a distribuição verdadeira de $T(F)$ à medida que $n \to \infty$. Isso justifica o uso das quantidades bootstrap como aproximações das quantidades populacionais. A demonstração formal desse resultado usa o **Teorema de Glivenko-Cantelli**, que garante que $F_n \to F$ uniformemente com probabilidade 1.
+:::
+
+::: {.callout-note collapse="true"}
+### Qual a definição de funcional?
+
+Em matemática, um **funcional** é uma função cujo domínio é um espaço de funções — ou seja, é uma regra que recebe uma **função como entrada** e devolve um **número (escalar) como saída**.
+
+No contexto estatístico, muitos parâmetros populacionais podem ser escritos como funcionais da função de distribuição acumulada $F$. Por exemplo:
+
+- **Média:** $T(F) = \int x \, \mathrm{d}F(x)$
+- **Variância:** $T(F) = \int (x - \mu)^2 \, \mathrm{d}F(x)$
+- **Mediana:** $T(F) = F^{-1}(0{,}5)$ (o quantil de ordem 0,5 de $F$)
+- **Coeficiente de correlação de Pearson** entre $X$ e $Y$: também pode ser escrito como um funcional da distribuição conjunta $F_{X,Y}$.
+
+A utilidade dessa perspectiva para o bootstrap é imediata: se o parâmetro que nos interessa é $T(F)$, e nossa melhor estimativa de $F$ é $F_n$, então a estimativa natural do parâmetro é $T(F_n)$ — o mesmo funcional aplicado à distribuição empírica. Isso formaliza o princípio de substituição (*plug-in principle*) que está na base do método.
+:::
+
+::: {.callout-note collapse="true"}
+### Qual a definição de amostra aleatória simples?
+
+Uma **amostra aleatória simples (AAS)** é uma amostra extraída de uma população de forma que **todos os elementos** da população têm a mesma probabilidade de serem selecionados, e as seleções são **independentes** entre si.
+
+Existem duas variantes:
+
+- **AAS sem reposição:** cada elemento só pode aparecer uma vez na amostra. É o tipo mais comum na prática de surveys e pesquisas.
+- **AAS com reposição:** após selecionar um elemento, ele é "devolvido" à população antes do próximo sorteio, podendo ser selecionado novamente. As reamostras bootstrap são exatamente amostras aleatórias simples **com reposição** da amostra original.
+
+Formalmente, diz-se que $X_1, X_2, \ldots, X_n$ constituem uma AAS de uma população com distribuição $F$ quando as variáveis são **independentes e identicamente distribuídas (i.i.d.)** com distribuição $F$ — que é exatamente a suposição do caso simples apresentado nos slides.
+:::
+
+::: {.callout-note collapse="true"}
+### Amostra aleatória simples é sinônimo de amostra representativa?
+
+Não exatamente, embora os conceitos sejam relacionados.
+
+**Amostra aleatória simples** é uma definição formal e probabilística: diz respeito ao **mecanismo de seleção** dos elementos (equiprobabilidade e independência).
+
+**Amostra representativa** é um conceito mais amplo e, em certo sentido, mais informal: uma amostra é representativa quando ela reflete adequadamente as características da população de interesse — em termos de proporções de subgrupos, variabilidade, etc.
+
+Uma AAS tende a ser representativa **em esperança** e **assintoticamente** (à medida que $n$ cresce), mas uma realização específica de uma AAS pode, por azar, não ser representativa. Por outro lado, existem delineamentos amostrais mais elaborados — como a **amostragem estratificada** — que podem produzir amostras mais representativas do que uma AAS, especialmente quando a população tem subgrupos bem definidos. Nesses casos, a amostra estratificada não é uma AAS no sentido estrito, mas tende a ser mais representativa.
+
+Em resumo: aleatoriedade favorece representatividade, mas não a garante em uma dada amostra, e há formas de obter representatividade sem AAS.
+:::
+
+::: {.callout-note collapse="true"}
+### O método bootstrap funciona apenas com amostras aleatórias?
+
+Essa é uma das questões mais importantes e sutis do bootstrap. A teoria clássica do bootstrap foi desenvolvida para o caso i.i.d. (amostra aleatória simples), mas o método foi amplamente estendido para outras situações.
+
+**Situações onde o bootstrap padrão não se aplica diretamente:**
+
+- **Dados com dependência temporal (séries temporais):** reamostrar observações individualmente quebra a estrutura de dependência. Para esses casos, existem variantes como o *block bootstrap* (bootstrap em blocos), que preserva a dependência local.
+- **Dados com estrutura de agrupamento (dados hierárquicos/longitudinais):** deve-se reamostrar os grupos inteiros, não as observações individualmente.
+- **Amostras complexas (estratificadas, por conglomerados):** o bootstrap deve respeitar o delineamento amostral.
+- **Dados censurados (análise de sobrevivência):** há versões adaptadas para esse contexto.
+
+Portanto, o bootstrap **não exige** necessariamente uma AAS, mas exige que o método de reamostragem seja **compatível com a estrutura dos dados**. O slide 6 da aula já menciona o "Bootstrap de dados com dependência" como um tópico separado do roteiro.
+:::
+
+::: {.callout-note collapse="true"}
+### O que é a função de distribuição empírica e para que ela serve?
+
+A **função de distribuição empírica** (FDA empírica, ou $F_n$) é construída diretamente a partir dos dados observados. Para uma amostra $x_1, x_2, \ldots, x_n$, ela é definida como:
+
+$$
+F_n(x) = \frac{\text{número de observações} \leq x}{n} = \frac{1}{n}\sum_{i=1}^{n} \mathbf{1}(x_i \leq x)
+$$
+
+Ou seja, $F_n(x)$ é simplesmente a proporção de observações da amostra que são menores ou iguais a $x$. Ela é uma **função escada** que sobe $1/n$ em cada ponto observado.
+
+**Para que ela serve?**
+
+- É a estimativa não paramétrica natural da verdadeira distribuição $F$ — e pelo **Teorema de Glivenko-Cantelli**, $F_n \to F$ uniformemente com probabilidade 1 quando $n \to \infty$.
+- É o **elemento fundamental do bootstrap**: reamostrar da amostra original com reposição é equivalente a sortear observações da distribuição $F_n$.
+- Permite estimar qualquer funcional de $F$ pelo princípio de substituição: $T(F)$ é estimado por $T(F_n)$.
+
+No R, a função `ecdf()` (*empirical cumulative distribution function*) calcula e retorna $F_n$ para um vetor de dados, como visto nos exemplos da aula.
+:::
+
+::: {.callout-note collapse="true"}
+### Existe inferência não paramétrica no paradigma bayesiano, ou ela é exclusiva da estatística clássica (frequentista)?
+
+Existe, sim! A inferência não paramétrica bayesiana é uma área ativa de pesquisa, embora seja consideravelmente mais complexa do que a versão frequentista.
+
+Na estatística bayesiana clássica, especifica-se uma família paramétrica para a distribuição dos dados e coloca-se uma distribuição a priori sobre os parâmetros. A abordagem **não paramétrica bayesiana** substitui isso por prioris sobre **espaços de funções** — ou seja, prioris sobre distribuições de probabilidade inteiras, não apenas sobre números reais.
+
+Os principais objetos de estudo nessa área são:
+
+- **Processo de Dirichlet (Ferguson, 1973):** a priori mais clássica sobre distribuições de probabilidade. Uma distribuição amostrada de um Processo de Dirichlet é quase certamente discreta, e à medida que se observam dados, a posteriori atualiza a distribuição de forma coerente com o teorema de Bayes.
+- **Processos Gaussianos:** prioris sobre funções de regressão, amplamente usados em aprendizado de máquina.
+- **Misturas de Dirichlet:** usadas para estimação de densidades e agrupamento (*clustering*) não paramétrico.
+
+Em relação ao bootstrap especificamente, há uma conexão interessante: o **bootstrap bayesiano de Rubin (1981)** é uma versão que sorteia pesos aleatórios (de uma distribuição de Dirichlet) para as observações em vez de fazer reamostragem com reposição, e tem interpretação bayesiana natural.
+
+Portanto, a não parametricidade — no sentido de não assumir uma família paramétrica para os dados — é perfeitamente compatível com o paradigma bayesiano.
+:::
+
+---
+
+## Referências
+
+- Efron, B. (1979). Bootstrap methods: Another look at the jackknife. *The Annals of Statistics*, 7(1), 1–26.
+- Efron, B. (1983). Estimating the error rate of a prediction rule: Improvement on cross-validation. *Journal of the American Statistical Association*, 78(382), 316–331.
+- Gong, G. (1986). Cross-validation, the jackknife, and the bootstrap: Excess error estimation in forward logistic regression. *Journal of the American Statistical Association*, 81(393), 108–113.
+- Bickel, P. J., & Ren, J. J. (1996). The $m$ out of $n$ bootstrap and goodness of fit tests with doubly censored data. *Robust Statistics, Data Analysis, and Computer Intensive Methods*, 35–47.
+- Fisher, R. A. (1935). *The Design of Experiments*. Oliver and Boyd.
+- Quenouile, M. H. (1949). Approximate tests of correlation in time series. *Journal of the Royal Statistical Society*, Series B, 11, 68–84.
+- Tukey, J. W. (1958). Bias and confidence in not-quite large samples (abstract). *Annals of Mathematical Statistics*, 29, 614.
